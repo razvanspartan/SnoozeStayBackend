@@ -2,14 +2,22 @@ package com.example.snoozestaybackend2.service;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+
+import com.example.snoozestaybackend2.Repos.BookingRepository;
 import com.example.snoozestaybackend2.Repos.HotelRepository;
 import com.example.snoozestaybackend2.Repos.ReviewRepository;
+import com.example.snoozestaybackend2.Repos.RoomRepository;
+import com.example.snoozestaybackend2.api.model.Booking;
 import com.example.snoozestaybackend2.api.model.Hotel;
 import com.example.snoozestaybackend2.api.model.Review;
+import com.example.snoozestaybackend2.api.model.Room;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -20,14 +28,17 @@ import java.util.stream.Collectors;
 @Service
 public class HotelService {
 
-
+    RoomRepository roomRepository;
     HotelRepository hotelRepository;
     ReviewRepository reviewRepository;
+    BookingRepository bookingRepository;
 
     @Autowired
-    public HotelService(HotelRepository hotelRepository, ReviewRepository reviewRepository) {
+    public HotelService(HotelRepository hotelRepository, ReviewRepository reviewRepository, RoomRepository roomRepository, BookingRepository bookingRepository){
         this.hotelRepository = hotelRepository;
         this.reviewRepository = reviewRepository;
+        this.roomRepository = roomRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     public List<Hotel> getAllHotels(float radius) {
@@ -41,14 +52,18 @@ public class HotelService {
                 })
                 .collect(Collectors.toList());
     }
+    public List<Hotel> saveAllHotels(List<Hotel> hotels) {
+        return hotelRepository.saveAll(hotels);
+    }
 
     public Hotel saveHotel(Hotel hotel) {
         return hotelRepository.save(hotel);
     }
 
-    public Hotel saveReview(Review review) {
-        return reviewRepository.save(review).getHotel();
+    public Review saveReview(Review review) {
+        return reviewRepository.save(review);
     }
+
 
     public Hotel getHotelById(int hotelId) {
         return hotelRepository.findById(hotelId).orElse(null);
@@ -56,6 +71,19 @@ public class HotelService {
 
     public List<Review> getReviewsByHotel(Hotel hotel) {
         return reviewRepository.findByHotel(hotel);
+    }
+    public Booking saveBooking(Booking booking) {
+        Room room = roomRepository.findById(booking.getRoom().getId())
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+
+        room.setIsAvailable(false);
+        roomRepository.save(room);
+
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return savedBooking;
     }
 
     public String getCurrentIpAddress() {
@@ -96,5 +124,31 @@ public class HotelService {
                 Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         return earthRadiusKm * c;
+    }
+
+    public List<Room> getRoomsByHotel(int hotelId) {
+        Hotel hotel = hotelRepository.findById(hotelId).orElse(null);
+        return hotel != null ? hotel.getRooms() : null;
+    }
+    public List<Booking> getBookingsByHotelIdAndUserId(int hotelId, int userId) {
+        return bookingRepository.findBookingsByHotelIdAndUserId(hotelId, userId);
+    }
+    public void deleteBookingAndUpdateRoom(int bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime checkInTime = booking.getCheckInDate();
+        long hoursUntilCheckIn = ChronoUnit.HOURS.between(now, checkInTime);
+
+        if (hoursUntilCheckIn < 2) {
+            throw new RuntimeException("Cannot cancel booking less than 2 hours before check-in");
+        }
+
+        Room room = booking.getRoom();
+        room.setIsAvailable(true);
+        roomRepository.save(room);
+
+        bookingRepository.deleteById(bookingId);
     }
 }

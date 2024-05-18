@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 @Table(name="Review")
 public class Review {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     private int rating;
@@ -62,6 +63,15 @@ public class Review {
     }
     public void setHotel(Hotel hotel) {
         this.hotel = hotel;
+    }
+    public void setUserId(int userId) {
+        this.user = new User();
+        this.user.setId(userId);
+    }
+
+    public void setHotelId(int hotelId) {
+        this.hotel = new Hotel();
+        this.hotel.setId(hotelId);
     }
 
 

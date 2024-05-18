@@ -1,13 +1,12 @@
 package com.example.snoozestaybackend2.api.model;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Entity
 public class User {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @Column(name = "firstName")
@@ -40,7 +39,7 @@ public class User {
 
     }
 
-    public int getId(int id){
+    public int getId(){
         return id;
     }
     public void setId(int id) {
